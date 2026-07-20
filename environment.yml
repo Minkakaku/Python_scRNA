@@ -1,0 +1,23 @@
+name: python-scrna-workflow
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - pip
+  - setuptools
+  - anndata
+  - scanpy>=1.10
+  - numpy
+  - pandas
+  - scipy
+  - scikit-learn
+  - matplotlib
+  - seaborn
+  - python-igraph
+  - leidenalg
+  - louvain
+  - harmonypy
+  - bbknn
+  - scrublet
+  - decoupler-py<2
+  - celltypist

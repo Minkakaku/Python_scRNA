@@ -1,0 +1,47 @@
+from pathlib import Path
+
+PROJECT_DIR = Path(__file__).resolve().parents[1]
+CONFIG_DIR = PROJECT_DIR / "config"
+DATA_DIR = PROJECT_DIR / "data"
+PROCESSED_DIR = DATA_DIR / "processed"
+RESULTS_DIR = PROJECT_DIR / "results"
+
+SAMPLE_INFO = CONFIG_DIR / "sample_info.tsv"
+ANNOTATION_FILE = CONFIG_DIR / "celltype_annotation.tsv"
+
+ADATA_RAW = PROCESSED_DIR / "00_adata_raw.h5ad"
+ADATA_QC = PROCESSED_DIR / "01_adata_qc.h5ad"
+ADATA_FILTERED = PROCESSED_DIR / "02_adata_filtered.h5ad"
+ADATA_CLUSTERED = PROCESSED_DIR / "03_adata_clustered.h5ad"
+ADATA_ANNOTATED = PROCESSED_DIR / "04_adata_annotated.h5ad"
+
+ORGANISM = "human"
+GROUP_ORDER = ["CON", "EXP"]
+GROUP_COLORS = {"CON": "#72b1b9", "EXP": "#f6ae00"}
+COPY_CELLRANGER_OUTPUTS = False
+
+MIN_GENES = 200
+MIN_CELLS = 3
+MAX_GENES = 8000
+MAX_COUNTS = 50000
+MAX_PCT_MT = 20
+MAX_PCT_RIBO = 100
+EXPECTED_DOUBLET_RATE = 6.0
+SCRUBLET_THRESHOLD = None
+
+CLUSTER_METHOD = "leiden"
+N_PCS = 30
+N_NEIGHBORS = 15
+RESOLUTION = 0.8
+BATCH_EFFECT = None
+N_TOP_GENES = 2000
+REGRESS_COVARIATES = ["total_counts", "pct_counts_mt"]
+RANDOM_SEED = 1234
+
+MARKER_METHOD = "wilcoxon"
+MARKER_LOGFC = 1.0
+MARKER_FDR = 0.05
+MARKER_MIN_PCT = 0.25
+
+ANNOTATION_DATABASE = "manual"
+CELLTYPIST_MODEL = None
