@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from scrna_workflow.analysis import cluster_proportion_table
+from scrna_workflow.analysis import cluster_proportion_table, detect_pca_knee
 from scrna_workflow.annotation import apply_manual_annotation
 from scrna_workflow.io import infer_group
 from scrna_workflow.runtime import save_figure
@@ -28,6 +28,10 @@ class CoreWorkflowTests(unittest.TestCase):
     def test_group_inference(self):
         self.assertEqual(infer_group("Con_1"), "CON")
         self.assertEqual(infer_group("Exp-2"), "EXP")
+
+    def test_pca_knee_detection(self):
+        variance = [10, 6, 3.5, 2.2, 1.6, 1.3, 1.1, 1.0]
+        self.assertEqual(detect_pca_knee(variance), 4)
 
     def test_manual_annotation_and_sample_level_proportions(self):
         adata, mapping = apply_manual_annotation(

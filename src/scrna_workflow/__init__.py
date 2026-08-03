@@ -1,5 +1,7 @@
 from .analysis import (
     cluster_proportion_table,
+    detect_pca_knee,
+    save_pca_knee,
     dim_reduction_cluster,
     find_marker_gene,
 )
@@ -26,6 +28,8 @@ __all__ = [
     "data_qc",
     "cell_filtering",
     "dim_reduction_cluster",
+    "detect_pca_knee",
+    "save_pca_knee",
     "cluster_proportion_table",
     "find_marker_gene",
     "apply_manual_annotation",

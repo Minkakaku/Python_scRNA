@@ -11,6 +11,94 @@ def _batch_method(value):
     return str(value or "none").strip("*").lower()
 
 
+def detect_pca_knee(variance, sensitivity=1.0):
+    """Return the Kneedle elbow for a decreasing PCA variance curve."""
+    from kneed import KneeLocator
+
+    variance = np.asarray(variance, dtype=float)
+    pcs = np.arange(1, variance.size + 1)
+    locator = KneeLocator(
+        pcs,
+        variance,
+        curve="convex",
+        direction="decreasing",
+        S=sensitivity,
+    )
+    return int(locator.knee) if locator.knee is not None else None
+
+
+def save_pca_knee(adata, out_dir, sensitivity=1.0):
+    """Save PCA variance, the automatic knee, and a marked elbow plot."""
+    out_dir = Path(out_dir)
+    variance = np.asarray(adata.uns["pca"]["variance"], dtype=float)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    variance_ratio = np.asarray(adata.uns["pca"]["variance_ratio"], dtype=float)
+    knee_pc = detect_pca_knee(variance, sensitivity=sensitivity)
+
+    table = pd.DataFrame(
+        {
+            "pc": np.arange(1, variance.size + 1),
+            "variance": variance,
+            "variance_percent": variance_ratio * 100,
+            "cumulative_percent": np.cumsum(variance_ratio) * 100,
+        }
+    )
+    table["is_knee"] = table["pc"].eq(knee_pc)
+    table.to_csv(out_dir / "pca_variance.csv", index=False)
+    pd.DataFrame(
+        [{
+            "method": "Kneedle",
+            "recommended_pc": knee_pc,
+            "curve": "convex",
+            "direction": "decreasing",
+            "sensitivity": sensitivity,
+        }]
+    ).to_csv(out_dir / "pca_knee_selection.csv", index=False)
+
+    fig, ax = plt.subplots(figsize=(8, 6))
+    ax.plot(
+        table["pc"],
+        table["variance_percent"],
+        color="#4D4D4D",
+        marker="o",
+        markersize=3,
+        linewidth=1,
+    )
+    if knee_pc is not None:
+        ax.axvline(
+            knee_pc,
+            color="#B2182B",
+            linestyle="--",
+            linewidth=1,
+            label=f"Kneedle: PC{knee_pc}",
+        )
+        ax.legend(frameon=False)
+    else:
+        ax.text(
+            0.98,
+            0.95,
+            "No clear knee identified",
+            ha="right",
+            transform=ax.transAxes,
+        )
+    ax.set(
+        xlabel="Principal component",
+        ylabel="Explained variance (%)",
+        title="PCA variance and automatic elbow",
+    )
+    ax.grid(False)
+    save_figure(out_dir / "pca_variance_ratio", fig)
+
+    adata.uns["pca_selection"] = {
+        "kneed_pc": knee_pc if knee_pc is not None else -1,
+        "curve": "convex",
+        "direction": "decreasing",
+        "sensitivity": float(sensitivity),
+    }
+    print(f"Automatic PCA elbow (Kneedle): {knee_pc}")
+    return knee_pc, table
+
+
 def cluster_proportion_table(adata, cluster_col="cluster"):
     proportions = pd.crosstab(
         adata.obs["sample"],
@@ -99,8 +187,7 @@ def dim_reduction_cluster(
     save_figure(out_dir / "pca_sample")
     sc.pl.pca(adata, color="group", show=False)
     save_figure(out_dir / "pca_group")
-    sc.pl.pca_variance_ratio(adata, log=True, show=False)
-    save_figure(out_dir / "pca_variance_ratio")
+    save_pca_knee(adata, out_dir)
 
     batch_method = _batch_method(batch_effect)
     if batch_method == "harmony":

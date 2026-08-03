@@ -1,4 +1,4 @@
-# Python scRNA-seq 分析模板
+# Python-scrna-workflow-template
 
 这是从原始 `scanpy_pipeline(1).py` 整理出的可复用 Scanpy 单细胞分析模板。原始脚本逐字节保存在 `legacy/original/`；正式代码只使用 Python 脚本，不使用 notebook 或 Streamlit。
 
@@ -56,6 +56,11 @@ step_load(project)
 - CON 使用 `#72b1b9`，EXP 使用 `#f6ae00`。
 - split UMAP 使用相同坐标范围和固定纵横比。
 - 最终图保存 PNG 和 PDF，结果与绘图输入表保存 CSV。
+- PCA 后使用 `kneed::KneeLocator()` 自动识别拐点，保存推荐 PC 和方差表；结果作为 `N_PCS` 的参考，不会自动覆盖项目配置。
 - 人工注释使用生物学名称，主图不展示技术性 cluster 名作为最终结论。
 
 真实数据的 QC 阈值、批次校正方法、resolution 和细胞注释仍需按项目决定。
+
+## 其他人员来源代码
+
+`source_catalog/` 收录 1065 份 Python/Shell 语义副本，覆盖 Scanpy、聚类注释和核心单细胞流程。`SOURCE_CATALOG.tsv` 用于区分同名版本和分析场景。正式分析继续优先使用本模板 Python 入口和独立 GPU 聚类脚本；来源中的 Streamlit、平台临时目录和项目参数只用于参考。
