@@ -4,7 +4,7 @@ from .analysis import dim_reduction_cluster, find_marker_gene
 from .annotation import celltype_annotation
 from .io import load_10x_data
 from .qc import cell_filtering, data_qc
-from .runtime import make_report_dir
+from .runtime import make_report_dir, prepare_project_dirs
 from .visualization import (
     plot_celltype_group_comparison,
     plot_celltype_proportion,
@@ -12,10 +12,12 @@ from .visualization import (
 )
 
 
+# 从样本表加载 10x 矩阵并保存原始合并 H5AD。
 def step_load(project):
-    report_dir = make_report_dir(project.RESULTS_DIR)
+    prepare_project_dirs(project)
+    report_dir = project.RESULTS_DIR
     adata = load_10x_data(
-        data_dir=project.DATA_DIR,
+        data_dir=project.RAW_DIR,
         sample_info=project.SAMPLE_INFO,
         out_dir=report_dir,
         copy_cellranger_outputs=project.COPY_CELLRANGER_OUTPUTS,
@@ -25,6 +27,7 @@ def step_load(project):
     return adata
 
 
+# 读取原始 H5AD，计算过滤前 QC 并保存带指标的检查点。
 def step_qc_before_filter(project):
     import scanpy as sc
 
@@ -35,6 +38,7 @@ def step_qc_before_filter(project):
     return adata
 
 
+# 使用项目 QC 参数过滤并逐样本识别双细胞，保存过滤后 H5AD。
 def step_qc_filter(project):
     import scanpy as sc
 
@@ -56,6 +60,7 @@ def step_qc_filter(project):
     return adata
 
 
+# 读取过滤后对象，按项目参数运行降维和聚类并保存 H5AD。
 def step_global_clustering(project):
     import scanpy as sc
 
@@ -76,6 +81,7 @@ def step_global_clustering(project):
     return adata
 
 
+# 读取聚类对象，按配置的检验方法和筛选阈值输出 cluster marker。
 def step_find_markers(project):
     import scanpy as sc
 
@@ -90,6 +96,7 @@ def step_find_markers(project):
     )
 
 
+# 加载人工映射或配置的自动注释方法，保存注释对象及实际使用的映射。
 def step_cell_annotation(project):
     import scanpy as sc
 
@@ -112,6 +119,7 @@ def step_cell_annotation(project):
     return adata, mapping
 
 
+# 输出样本和组别组成；多组输入时同时计算样本层面的组间比较。
 def step_cell_proportion(project):
     import scanpy as sc
 
@@ -130,6 +138,7 @@ def step_cell_proportion(project):
     return sample_table, group_table, comparison
 
 
+# 在已注释对象上绘制指定基因的 UMAP、小提琴图及配套表达表。
 def step_visualize_genes(project, genes):
     import scanpy as sc
 

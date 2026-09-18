@@ -7,10 +7,12 @@ import pandas as pd
 from .runtime import fix_umap_axes, save_figure, umap_limits
 
 
+# 统一批次方法名称：缺省为 none，去除外围星号并转小写。
 def _batch_method(value):
     return str(value or "none").strip("*").lower()
 
 
+# 用 Kneedle 寻找递减凸形 PCA 方差曲线的拐点；无明确拐点时返回 None。
 def detect_pca_knee(variance, sensitivity=1.0):
     """Return the Kneedle elbow for a decreasing PCA variance curve."""
     from kneed import KneeLocator
@@ -27,6 +29,7 @@ def detect_pca_knee(variance, sensitivity=1.0):
     return int(locator.knee) if locator.knee is not None else None
 
 
+# 保存 PC 方差表、自动拐点和标线图，并把选择信息写入 AnnData。
 def save_pca_knee(adata, out_dir, sensitivity=1.0):
     """Save PCA variance, the automatic knee, and a marked elbow plot."""
     out_dir = Path(out_dir)
@@ -99,6 +102,7 @@ def save_pca_knee(adata, out_dir, sensitivity=1.0):
     return knee_pc, table
 
 
+# 功能：按样本汇总 cluster 或细胞类型比例（定义：cluster_proportion_table）。
 def cluster_proportion_table(adata, cluster_col="cluster"):
     proportions = pd.crosstab(
         adata.obs["sample"],
@@ -114,6 +118,7 @@ def cluster_proportion_table(adata, cluster_col="cluster"):
     return long.merge(groups, on="sample", how="left")
 
 
+# 沿用全对象 UMAP 坐标按组或样本分面，并固定各面板坐标范围。
 def _split_umap(adata, split_col, color, out_path):
     levels = adata.obs[split_col].drop_duplicates().tolist()
     if len(levels) < 2:
@@ -137,6 +142,7 @@ def _split_umap(adata, split_col, color, out_path):
     save_figure(out_path, fig)
 
 
+# 保留原始计数后依次归一化、筛选 HVG、PCA、批次处理、聚类和 UMAP。
 def dim_reduction_cluster(
     _adata,
     method,
@@ -158,6 +164,7 @@ def dim_reduction_cluster(
     adata.layers["counts"] = adata.X.copy()
     sc.pp.normalize_total(adata)
     sc.pp.log1p(adata)
+    # 在筛选 HVG 和缩放前保存全基因 log1p 表达，供后续 marker 与基因绘图使用。
     adata.raw = adata.copy()
 
     hvg_kwargs = {
@@ -189,6 +196,7 @@ def dim_reduction_cluster(
     save_figure(out_dir / "pca_group")
     save_pca_knee(adata, out_dir)
 
+    # Harmony 校正 PCA，BBKNN 调整邻接图；其他值使用未校正的 PCA 邻接图。
     batch_method = _batch_method(batch_effect)
     if batch_method == "harmony":
         sce.pp.harmony_integrate(
@@ -296,6 +304,7 @@ def dim_reduction_cluster(
     return adata
 
 
+# 保留分类列的既有 cluster 顺序；普通字符串列则排序后返回。
 def _cluster_categories(adata):
     values = adata.obs["cluster"]
     if isinstance(values.dtype, pd.CategoricalDtype):
@@ -303,6 +312,7 @@ def _cluster_categories(adata):
     return sorted(values.astype(str).unique())
 
 
+# 按 cluster 检验 marker，依 logFC、FDR 和表达比例筛选并输出表图。
 def find_marker_gene(
     _adata,
     method,

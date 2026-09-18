@@ -1,3 +1,5 @@
+# 集中导出单细胞流程的公开函数；__all__ 指定允许通配导入的接口。
+
 from .analysis import (
     cluster_proportion_table,
     detect_pca_knee,

@@ -9,6 +9,7 @@ from .visualization import (
 )
 
 
+# 检查人工映射覆盖所有 cluster，再写入 cell_type 分类列。
 def apply_manual_annotation(adata, annotation_dict):
     clusters = adata.obs["cluster"].astype(str)
     mapping = {str(key): value for key, value in annotation_dict.items()}
@@ -19,6 +20,7 @@ def apply_manual_annotation(adata, annotation_dict):
     return adata, mapping
 
 
+# 读取物种匹配的 PanglaoDB marker，以 ORA 富集汇总推断各 cluster 标签。
 def _panglaodb_annotation(adata, organism):
     import decoupler as dc
 
@@ -43,6 +45,7 @@ def _panglaodb_annotation(adata, organism):
     return apply_manual_annotation(adata, mapping)
 
 
+# 使用指定 CellTypist 模型预测并在 cluster 内多数投票，按细胞索引回填标签。
 def _celltypist_annotation(adata, model):
     import celltypist
 
@@ -66,6 +69,7 @@ def _celltypist_annotation(adata, model):
     return adata, {str(k): v for k, v in mapping.items()}
 
 
+# 选择人工、PanglaoDB 或 CellTypist 注释，输出映射、UMAP 和组成统计。
 def celltype_annotation(
     _adata,
     database,

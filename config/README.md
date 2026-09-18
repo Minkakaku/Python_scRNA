@@ -1,15 +1,6 @@
-# config
+# 公共配置
 
-新项目开始时：
+- `default.yaml`：QC、Scrublet、聚类、marker 和注释方法的公共默认参数。
+- `reference.yaml`：物种和参考相关默认值。
 
-1. 复制 `sample_info.example.tsv` 为 `sample_info.tsv`；
-2. 修改 `project.py` 中的 QC、批次校正、聚类和 marker 参数；
-3. marker 完成后复制 `celltype_annotation.example.tsv` 为 `celltype_annotation.tsv`，填写生物学注释。
-
-`sample_info.tsv`：
-
-- `raw`：`data/` 下的 Cell Ranger 样本目录名；
-- `sample`：写入 AnnData 的样本名；
-- `group`：实验分组，如 CON、EXP。
-
-标准输入路径为 `data/<raw>/outs/filtered_feature_bc_matrix/` 或 `filtered_feature_bc_matrix.h5`。
+项目参数放在 `projects/<项目>/config/config.yaml`，同名顶级键覆盖公共值。样本表和人工 cell-type 映射属于项目配置，不放在根目录。

@@ -1,66 +1,55 @@
 # Python-scrna-workflow-template
 
-这是从原始 `scanpy_pipeline(1).py` 整理出的可复用 Scanpy 单细胞分析模板。原始脚本逐字节保存在 `legacy/original/`；正式代码只使用 Python 脚本，不使用 notebook 或 Streamlit。
+这是从原始 `scanpy_pipeline(1).py` 整理出的分层 Scanpy 单细胞主流程。公共方法与项目运行记录分开管理；原始脚本逐字节保存在 `legacy/original/`，正式入口只使用 Python 脚本。
 
-## 目录约定
+## 项目结构
 
-- `src/`：可跨项目复用的函数和分析方法。
-- `config/`：当前项目的样本表、QC、聚类和人工注释。
-- `workflow/`：项目开始时为空；每运行一个分析点，新建 `stepXX_name.py`。
-- `legacy/original/`：原始脚本，只追溯、不修改。
-- `data/`、`results/`、`logs/`：输入、中间对象和结果，不提交 Git。
-
-已运行的 workflow 不覆盖。参数变化、重聚类或补充分析使用新的步骤文件。
-
-## 环境
-
-```bash
-conda env create -f environment.yml
-conda activate python-scrna-workflow
-pip install -e .
+```text
+├── src/python/scrna_workflow/   # 跨项目复用函数与标准步骤
+├── config/                      # 公共默认与参考配置
+├── projects/project1/           # 项目配置、workflow、数据、结果和日志
+├── envs/                        # 公共运行环境
+├── tests/
+├── source_catalog/              # 其他人员代码的语义参考档案
+└── legacy/original/             # 未修改的原始代码
 ```
 
-## 新项目开始
+`config/default.yaml` 和 `config/reference.yaml` 提供公共值，项目 `config/config.yaml` 按同名键覆盖。样本、QC、分组和人工注释均保留在具体项目中。
 
-1. 复制 `config/sample_info.example.tsv` 为 `config/sample_info.tsv`。
-2. 修改 `config/project.py`。
-3. 把 Cell Ranger 输出放到 `data/<raw>/outs/`。
-4. 在 `workflow/` 新建本次步骤脚本。
-5. 在项目根目录用模块方式运行，例如 `python -m workflow.step01_load`。
-
-第一个步骤 `workflow/step01_load.py`：
-
-```python
-from config import project
-from scrna_workflow.steps import step_load
-
-step_load(project)
-```
-
-标准顺序：
+## 标准分析顺序
 
 1. 读取 Cell Ranger；
 2. 过滤前 QC；
-3. QC、Scrublet 和过滤；
-4. 标准化、批次校正、聚类和 UMAP；
+3. Scrublet 与过滤；
+4. 标准化、批次校正、聚类与 UMAP；
 5. marker；
 6. 人工或辅助注释；
 7. 样本级细胞比例比较；
 8. 按需进行基因可视化。
 
-完整代码见 [新项目指南](docs/new_project.md)，原代码修正记录见 [审查记录](docs/original_code_review_CN.md)。
+中间 H5AD 写入项目 `data/processed/`，最终图表写入项目下编号 `results/` 目录。
+
+## 安装与运行
+
+```bash
+conda env create -f envs/environment.yaml
+conda activate python-scrna-workflow
+pip install -e .
+python projects/project1/workflow/00_setup.py
+python projects/project1/workflow/01_load.py
+```
+
+复制 `projects/project1/` 即可开始新项目。QC 后人工确认阈值再过滤；marker 后填写 `config/celltype_annotation.tsv` 再注释。已运行的 workflow 不覆盖，改参或重跑时新增下一编号脚本。
+
+完整说明见 [新项目指南](docs/new_project.md) 和 [代码分层](docs/code_layout.md)。
 
 ## 统计与绘图
 
-- CON/EXP 比较先汇总到样本，不把每个细胞当作独立重复。
+- CON/EXP 比较先汇总到样本，不把细胞当作独立重复。
 - CON 使用 `#72b1b9`，EXP 使用 `#f6ae00`。
 - split UMAP 使用相同坐标范围和固定纵横比。
-- 最终图保存 PNG 和 PDF，结果与绘图输入表保存 CSV。
-- PCA 后使用 `kneed::KneeLocator()` 自动识别拐点，保存推荐 PC 和方差表；结果作为 `N_PCS` 的参考，不会自动覆盖项目配置。
-- 人工注释使用生物学名称，主图不展示技术性 cluster 名作为最终结论。
+- 正式图保存同名 PNG/PDF，结果与绘图输入表保存 CSV。
+- PCA 使用 `kneed.KneeLocator()` 输出自动拐点参考，但不覆盖项目配置的 `n_pcs`。
+- 人工注释使用生物学名称，主图不把技术 cluster 名作为最终结论。
 
-真实数据的 QC 阈值、批次校正方法、resolution 和细胞注释仍需按项目决定。
-
-## 其他人员来源代码
-
-`source_catalog/` 收录 1065 份 Python/Shell 语义副本，覆盖 Scanpy、聚类注释和核心单细胞流程。`SOURCE_CATALOG.tsv` 用于区分同名版本和分析场景。正式分析继续优先使用本模板 Python 入口和独立 GPU 聚类脚本；来源中的 Streamlit、平台临时目录和项目参数只用于参考。
+`source_catalog/` 保留为参考档案，不作为正式运行入口，也不迁入项目 workflow。

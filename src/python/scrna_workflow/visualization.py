@@ -21,6 +21,7 @@ FEATURE_COLORS = [
 ]
 
 
+# 功能：按样本和细胞类型汇总细胞数量及比例（定义：sample_proportion_table）。
 def sample_proportion_table(adata, celltype_col="cell_type"):
     wide = pd.crosstab(
         adata.obs["sample"],
@@ -36,6 +37,7 @@ def sample_proportion_table(adata, celltype_col="cell_type"):
     return long.merge(groups, on="sample", how="left")
 
 
+# 功能：绘制并整理 比例、UMAP 与基因可视化 分析结果（定义：plot_celltype_proportion）。
 def plot_celltype_proportion(_adata, out_dir, type="sample", fig_size=None):
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -73,6 +75,7 @@ def plot_celltype_proportion(_adata, out_dir, type="sample", fig_size=None):
     return table
 
 
+# 功能：绘制并整理 比例、UMAP 与基因可视化 分析结果（定义：plot_celltype_group_comparison）。
 def plot_celltype_group_comparison(
     adata,
     out_dir,
@@ -155,6 +158,7 @@ def plot_celltype_group_comparison(
     return table, tests
 
 
+# 功能：绘制并整理 比例、UMAP 与基因可视化 分析结果（定义：plot_annotation_umaps）。
 def plot_annotation_umaps(adata, out_dir):
     import scanpy as sc
 
@@ -203,6 +207,7 @@ def plot_annotation_umaps(adata, out_dir):
     save_figure(out_dir / "umap_cluster_celltype")
 
 
+# 绘制指定基因的 UMAP 与分组小提琴图，优先读取 raw 并保存逐细胞表达表。
 def visua_gene_express(
     _adata,
     genes,

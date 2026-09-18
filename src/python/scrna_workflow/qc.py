@@ -14,6 +14,7 @@ QC_COLUMNS = [
 ]
 
 
+# 按基因前缀标记线粒体和核糖体基因，计算每个细胞的计数及比例。
 def add_qc_metrics(adata):
     import scanpy as sc
 
@@ -29,6 +30,7 @@ def add_qc_metrics(adata):
     return adata
 
 
+# 绘制按样本分组的 QC 小提琴图及 UMI 与基因数、线粒体比例散点图。
 def _plot_qc_panel(adata, out_dir, prefix):
     import matplotlib.pyplot as plt
     import scanpy as sc
@@ -72,6 +74,7 @@ def _plot_qc_panel(adata, out_dir, prefix):
     save_figure(Path(out_dir) / f"{prefix}_nCount_nFeature_scatter", fig)
 
 
+# 计算过滤前 QC 指标，保存全体及逐样本图形和细胞指标表。
 def data_qc(_adata, out_dir):
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -88,6 +91,7 @@ def data_qc(_adata, out_dir):
     return _adata
 
 
+# 应用表达量和比例阈值，逐样本运行 Scrublet，再输出过滤结果与保留率。
 def cell_filtering(
     _adata,
     min_genes,
@@ -122,6 +126,7 @@ def cell_filtering(
     rate = expected_doublet_rate / 100 if expected_doublet_rate > 1 else expected_doublet_rate
     adata.obs["doublet_score"] = np.nan
     adata.obs["predicted_doublet"] = False
+    # 双细胞模型逐样本拟合，避免将不同样本的细胞混合作为同一捕获文库。
     score_tables = []
     thresholds = []
     for sample in adata.obs["sample"].drop_duplicates():

@@ -11,6 +11,7 @@ DEFAULT_GROUP_PATTERNS = {
 }
 
 
+# 功能：根据样本名称或样本表推断实验分组（定义：infer_group）。
 def infer_group(sample, patterns=None):
     patterns = patterns or DEFAULT_GROUP_PATTERNS
     for group, pattern in patterns.items():
@@ -19,6 +20,7 @@ def infer_group(sample, patterns=None):
     return str(sample)
 
 
+# 读取样本 TSV 并检查 raw/sample 列；缺失的分组按样本名规则补全。
 def read_sample_info(path, group_patterns=None):
     table = pd.read_csv(path, sep="\t", dtype=str).fillna("")
     if "raw" not in table or "sample" not in table:
@@ -32,6 +34,7 @@ def read_sample_info(path, group_patterns=None):
     return table
 
 
+# 优先寻找 Cell Ranger 过滤 MTX 目录，其次寻找 H5；均缺失时中止。
 def _matrix_path(raw_dir):
     outs = Path(raw_dir) / "outs"
     matrix_dir = outs / "filtered_feature_bc_matrix"
@@ -43,6 +46,7 @@ def _matrix_path(raw_dir):
     raise FileNotFoundError(f"No filtered Cell Ranger matrix under {outs}")
 
 
+# 读取单样本矩阵，并用 sample:barcode 构造跨样本唯一细胞索引。
 def _read_10x_record(record, data_dir, cache=True):
     import scanpy as sc
 
@@ -62,6 +66,7 @@ def _read_10x_record(record, data_dir, cache=True):
     return adata
 
 
+# 复制存在的 Cell Ranger 报告、指标和过滤矩阵到当前报告目录。
 def _copy_cellranger_outputs(record, data_dir, out_dir):
     source = Path(data_dir) / record.raw / "outs"
     target = Path(out_dir) / "01-CellRanger" / record.sample
@@ -75,6 +80,7 @@ def _copy_cellranger_outputs(record, data_dir, out_dir):
         shutil.copytree(matrix, target / matrix.name, dirs_exist_ok=True)
 
 
+# 按样本表读入矩阵，以共同基因合并样本，并可复制 Cell Ranger 结果。
 def load_10x_data(
     data_dir,
     sample_info,
@@ -100,6 +106,7 @@ def load_10x_data(
     return adata
 
 
+# 将 group-to-samples 字典转换为样本表，再复用多样本读取函数。
 def get_10x_mtx(data_path, sample_dict, out_dir=None):
     rows = [
         {"raw": sample, "sample": sample, "group": group}
