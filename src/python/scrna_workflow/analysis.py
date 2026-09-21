@@ -3,8 +3,9 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from matplotlib.colors import LinearSegmentedColormap
 
-from .runtime import fix_umap_axes, save_figure, umap_limits
+from .runtime import NPG_DIVERGING, fix_umap_axes, save_figure, set_adata_palette, style_dotplot, umap_limits
 
 
 # 统一批次方法名称：缺省为 none，去除外围星号并转小写。
@@ -70,7 +71,7 @@ def save_pca_knee(adata, out_dir, sensitivity=1.0):
     if knee_pc is not None:
         ax.axvline(
             knee_pc,
-            color="#B2182B",
+            color="#E64B35",
             linestyle="--",
             linewidth=1,
             label=f"Kneedle: PC{knee_pc}",
@@ -247,6 +248,7 @@ def dim_reduction_cluster(
         ("sample", "umap_sample_dimplot", ""),
         ("group", "umap_group_dimplot", ""),
     ):
+        set_adata_palette(adata, color)
         sc.pl.umap(
             adata,
             color=color,
@@ -268,7 +270,7 @@ def dim_reduction_cluster(
         adata,
         color=metrics,
         ncols=2,
-        cmap="coolwarm",
+        cmap=LinearSegmentedColormap.from_list("npg_diverging", NPG_DIVERGING),
         use_raw=False,
         show=False,
     )
@@ -379,10 +381,12 @@ def find_marker_gene(
         vmin=-3,
         vmax=3,
         min_logfoldchange=logfc,
-        cmap="bwr",
+        cmap=LinearSegmentedColormap.from_list("npg_diverging", NPG_DIVERGING),
+        smallest_dot=18,
         colorbar_title="log fold change",
         show=False,
     )
+    style_dotplot()
     save_figure(
         out_dir / "dotplot_top3_marker_gene",
         fig_size={"width": 20, "height": 8},
@@ -394,7 +398,7 @@ def find_marker_gene(
         values_to_plot="logfoldchanges",
         min_logfoldchange=logfc,
         swap_axes=True,
-        cmap="bwr",
+        cmap=LinearSegmentedColormap.from_list("npg_diverging", NPG_DIVERGING),
         standard_scale="var",
         show_gene_labels=True,
         dendrogram=False,

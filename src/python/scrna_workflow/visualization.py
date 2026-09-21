@@ -7,18 +7,18 @@ from matplotlib.colors import LinearSegmentedColormap
 from scipy.stats import mannwhitneyu
 from scipy.sparse import issparse
 
-from .runtime import fix_umap_axes, group_palette, save_figure, umap_limits
+from .runtime import (
+    NPG_SEQUENTIAL,
+    categorical_palette,
+    fix_umap_axes,
+    group_palette,
+    save_figure,
+    set_adata_palette,
+    umap_limits,
+)
 
 
-FEATURE_COLORS = [
-    "#FFEFD5",
-    "#E6E6FA",
-    "#87CEFA",
-    "#6495ED",
-    "#4169E1",
-    "#0000CD",
-    "#000080",
-]
+FEATURE_COLORS = NPG_SEQUENTIAL
 
 
 # 功能：按样本和细胞类型汇总细胞数量及比例（定义：sample_proportion_table）。
@@ -48,8 +48,7 @@ def plot_celltype_proportion(_adata, out_dir, type="sample", fig_size=None):
     )
     table.to_csv(out_dir / f"celltype_proportion_{type}.csv")
 
-    colors = _adata.uns.get("cell_type_colors", plt.get_cmap("tab20").colors)
-    palette = dict(zip(table.columns, colors))
+    palette = categorical_palette(table.columns)
     ax = table.plot(
         kind="bar",
         stacked=True,
@@ -164,6 +163,7 @@ def plot_annotation_umaps(adata, out_dir):
 
     out_dir = Path(out_dir)
     xlim, ylim = umap_limits(adata)
+    set_adata_palette(adata, "cell_type")
     sc.pl.umap(
         adata,
         color="cell_type",

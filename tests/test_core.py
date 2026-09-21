@@ -9,7 +9,7 @@ import pandas as pd
 from scrna_workflow.analysis import cluster_proportion_table, detect_pca_knee
 from scrna_workflow.annotation import apply_manual_annotation
 from scrna_workflow.io import infer_group
-from scrna_workflow.runtime import save_figure
+from scrna_workflow.runtime import NPG_COLORS, categorical_palette, save_figure
 from scrna_workflow.visualization import sample_proportion_table
 
 
@@ -66,6 +66,13 @@ class CoreWorkflowTests(unittest.TestCase):
         finally:
             stem.with_suffix(".png").unlink(missing_ok=True)
             stem.with_suffix(".pdf").unlink(missing_ok=True)
+
+    # 功能：验证分类图优先使用固定 NPG 顺序，且超过十类仍可扩展。
+    def test_npg_palette_order_and_extension(self):
+        labels = [f"C{x}" for x in range(12)]
+        palette = categorical_palette(labels)
+        self.assertEqual([palette[x] for x in labels[:10]], list(NPG_COLORS))
+        self.assertEqual(len(set(palette.values())), 12)
 
 
 if __name__ == "__main__":
