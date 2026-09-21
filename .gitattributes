@@ -6,3 +6,4 @@
 *.tsv text eol=lf
 *.csv text eol=lf
 legacy/original/** -text
+source_catalog/** -text
