@@ -7,10 +7,11 @@ name = "python-scrna-workflow"
 version = "0.1.0"
 description = "Reusable Scanpy single-cell RNA-seq workflow"
 requires-python = ">=3.10"
+dependencies = ["PyYAML>=6"]
 
 [tool.setuptools]
-package-dir = {"" = "src"}
+package-dir = {"" = "src/python"}
 
 [tool.setuptools.packages.find]
-where = ["src"]
+where = ["src/python"]
 include = ["scrna_workflow*"]

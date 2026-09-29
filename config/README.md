@@ -1,15 +1,5 @@
-# config
+# 项目分层
 
-新项目开始时：
+公共方法在仓库 src/R 或 src/python；公共默认在根 config；项目参数与人工表格在 projects/<项目>/config；实际执行脚本在项目 workflow。编号步骤仅加载配置、调用共享方法与写日志。中间对象在项目 data/processed，结果在项目 results，环境在 envs。
 
-1. 复制 `sample_info.example.tsv` 为 `sample_info.tsv`；
-2. 修改 `project.py` 中的 QC、批次校正、聚类和 marker 参数；
-3. marker 完成后复制 `celltype_annotation.example.tsv` 为 `celltype_annotation.tsv`，填写生物学注释。
-
-`sample_info.tsv`：
-
-- `raw`：`data/` 下的 Cell Ranger 样本目录名；
-- `sample`：写入 AnnData 的样本名；
-- `group`：实验分组，如 CON、EXP。
-
-标准输入路径为 `data/<raw>/outs/filtered_feature_bc_matrix/` 或 `filtered_feature_bc_matrix.h5`。
+新项目复制 projects/project1，再按仓库 README 调整配置和运行。不要修改公共代码中的路径来适配项目。保留已经执行的步骤，重跑新增编号和输出目录。

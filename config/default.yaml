@@ -1,0 +1,32 @@
+organism: human
+group_order:
+- CON
+- EXP
+group_colors:
+  CON: '#72b1b9'
+  EXP: '#f6ae00'
+copy_cellranger_outputs: false
+min_genes: 200
+min_cells: 3
+max_genes: 8000
+max_counts: 50000
+max_pct_mt: 20
+max_pct_ribo: 100
+expected_doublet_rate: 6.0
+scrublet_threshold: null
+cluster_method: leiden
+n_pcs: 30
+n_neighbors: 15
+resolution: 0.8
+batch_effect: null
+n_top_genes: 2000
+regress_covariates:
+- total_counts
+- pct_counts_mt
+random_seed: 1234
+marker_method: wilcoxon
+marker_logfc: 1.0
+marker_fdr: 0.05
+marker_min_pct: 0.25
+annotation_database: manual
+celltypist_model: null
