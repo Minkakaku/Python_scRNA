@@ -46,7 +46,7 @@ python projects/project1/workflow/01_load.py
 ## 统计与绘图
 
 - CON/EXP 比较先汇总到样本，不把细胞当作独立重复。
-- CON 使用 `#72b1b9`，EXP 使用 `#f6ae00`。
+- CON 使用 `#E64B35`，EXP 使用 `#4DBBD5`。
 - split UMAP 使用相同坐标范围和固定纵横比。
 - 正式图保存同名 PNG/PDF，结果与绘图输入表保存 CSV。
 - PCA 使用 `kneed.KneeLocator()` 输出自动拐点参考，但不覆盖项目配置的 `n_pcs`。
