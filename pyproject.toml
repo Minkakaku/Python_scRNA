@@ -14,3 +14,7 @@ package-dir = {"" = "src/python"}
 [tool.setuptools.packages.find]
 where = ["src/python"]
 include = ["scrna_workflow*"]
+
+# VDJ 按需安装，普通单细胞流程不额外依赖 Scirpy/MuData。
+[project.optional-dependencies]
+vdj = ["scirpy>=0.13,<0.23", "mudata>=0.2,<0.4", "parasail>=1.3"]

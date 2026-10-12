@@ -2,7 +2,7 @@ import pandas as pd
 
 from .analysis import dim_reduction_cluster, find_marker_gene
 from .annotation import celltype_annotation
-from .io import load_10x_data
+from .io import load_expression_data
 from .qc import cell_filtering, data_qc
 from .runtime import make_report_dir, prepare_project_dirs
 from .visualization import (
@@ -12,15 +12,17 @@ from .visualization import (
 )
 
 
-# 从样本表加载 10x 矩阵并保存原始合并 H5AD。
+# 从样本表加载所选平台矩阵并保存原始合并 H5AD。
 def step_load(project):
     prepare_project_dirs(project)
     report_dir = project.RESULTS_DIR
-    adata = load_10x_data(
+    adata = load_expression_data(
         data_dir=project.RAW_DIR,
         sample_info=project.SAMPLE_INFO,
         out_dir=report_dir,
         copy_cellranger_outputs=project.COPY_CELLRANGER_OUTPUTS,
+        platform=getattr(project, "INPUT_PLATFORM", "10x"),
+        join=getattr(project, "MATRIX_JOIN", "inner"),
     )
     project.PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
     adata.write(project.ADATA_RAW)
@@ -148,3 +150,31 @@ def step_visualize_genes(project, genes):
         genes=genes,
         out_dir=project.RESULTS_DIR / "08-Gene_visualization",
     )
+
+
+# 计算已注释细胞类型的正向 marker；仍是细胞类型特征，不是样本组间差异检验。
+def step_celltype_markers(project):
+    import scanpy as sc
+
+    adata = sc.read_h5ad(project.ADATA_ANNOTATED)
+    counts = adata.obs["cell_type"].value_counts()
+    valid = counts[counts >= 2].index
+    if len(valid) < 2:
+        raise ValueError("Cell-type markers require at least two types with two cells each")
+    adata = adata[adata.obs["cell_type"].isin(valid)].copy()
+    return find_marker_gene(adata, method=project.MARKER_METHOD,
+                           out_dir=project.RESULTS_DIR / "10-Celltype_markers",
+                           logfc=project.CELLTYPE_MARKER_LOGFC, fdr=project.MARKER_FDR,
+                           pct=project.CELLTYPE_MARKER_MIN_PCT, groupby="cell_type", positive_only=True)
+
+
+# VDJ 输入表属于项目配置；只消费已注释 H5AD，不重新聚类 RNA。
+def step_vdj(project):
+    import anndata as ad
+    from .vdj import run_vdj_analysis
+
+    return run_vdj_analysis(ad.read_h5ad(project.ADATA_ANNOTATED),
+                            project.CONFIG_DIR / "vdj_samples.tsv", project.RESULTS_DIR / "08-VDJ",
+                            project.PROCESSED_DIR / "06_vdj.h5mu", base_dir=project.PROJECT_DIR,
+                            method=project.VDJ_METHOD, metric=project.VDJ_METRIC, cutoff=project.VDJ_CUTOFF,
+                            min_network_cells=project.VDJ_MIN_NETWORK_CELLS, seed=project.RANDOM_SEED)

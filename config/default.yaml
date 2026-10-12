@@ -26,3 +26,17 @@ marker_min_pct: 0.25
 
 annotation_database: manual
 celltypist_model: null
+
+# 公共服务器四平台矩阵读取；samples.tsv 的 platform 列可逐样本覆盖。
+input_platform: 10x
+matrix_join: inner
+
+# 已注释细胞类型 marker 沿用服务器正向筛选阈值，不作为条件组间检验。
+celltype_marker_logfc: 0.25
+celltype_marker_min_pct: 0.1
+
+# 按需执行 VDJ；alignment 是相似氨基酸序列克隆簇，identity 为精确氨基酸匹配。
+vdj_method: TCR
+vdj_metric: alignment
+vdj_cutoff: 15
+vdj_min_network_cells: 3

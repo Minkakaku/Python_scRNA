@@ -307,8 +307,8 @@ def dim_reduction_cluster(
 
 
 # 保留分类列的既有 cluster 顺序；普通字符串列则排序后返回。
-def _cluster_categories(adata):
-    values = adata.obs["cluster"]
+def _cluster_categories(adata, groupby="cluster"):
+    values = adata.obs[groupby]
     if isinstance(values.dtype, pd.CategoricalDtype):
         return values.cat.categories.tolist()
     return sorted(values.astype(str).unique())
@@ -322,6 +322,8 @@ def find_marker_gene(
     logfc=1,
     fdr=0.05,
     pct=0.25,
+    groupby="cluster",
+    positive_only=False,
 ):
     import scanpy as sc
 
@@ -329,7 +331,7 @@ def find_marker_gene(
     out_dir.mkdir(parents=True, exist_ok=True)
     sc.tl.rank_genes_groups(
         _adata,
-        groupby="cluster",
+        groupby=groupby,
         method=method,
         pts=True,
         use_raw=_adata.raw is not None,
@@ -341,17 +343,25 @@ def find_marker_gene(
     )
 
     all_diff = []
-    for cluster in _cluster_categories(_adata):
-        cluster_dir = out_dir / f"cluster_{cluster}"
+    for index, cluster in enumerate(_cluster_categories(_adata, groupby)):
+        # 生物学标签可含斜线；用编号目录保存，真实标签仍保留在表中。
+        folder = f"cluster_{cluster}" if groupby == "cluster" else f"celltype_{index + 1:02d}"
+        cluster_dir = out_dir / folder
         cluster_dir.mkdir(parents=True, exist_ok=True)
         markers = sc.get.rank_genes_groups_df(_adata, group=cluster)
+        if groupby == "cell_type":
+            # 完整检验结果供单个细胞类型富集使用，保留正负效应及不显著基因。
+            tested = markers.rename(columns={"names": "Symbol"}).copy()
+            tested[groupby] = str(cluster)
+            tested.to_csv(cluster_dir / "all_tested_genes.csv", index=False)
+        effect = markers["logfoldchanges"] if positive_only else markers["logfoldchanges"].abs()
         markers = markers[
-            (markers["logfoldchanges"].abs() > logfc)
+            (effect > logfc)
             & (markers["pvals_adj"] < fdr)
             & (markers["pct_nz_group"] >= pct)
         ].copy()
         markers.to_csv(cluster_dir / "differentially_expressed_genes.csv", index=False)
-        markers["cluster"] = str(cluster)
+        markers[groupby] = str(cluster)
         all_diff.append(markers)
 
         top_genes = markers["names"].head(5).tolist()
@@ -368,9 +378,9 @@ def find_marker_gene(
 
     all_markers = pd.concat(all_diff, ignore_index=True)
     all_markers = all_markers.rename(columns={"names": "Symbol"})
-    all_markers.to_csv(out_dir / "all_cluster_marker.csv", index=False)
-    all_markers["cluster"].value_counts().sort_index().to_csv(
-        out_dir / "cluster_diff_statistics.csv",
+    all_markers.to_csv(out_dir / f"all_{groupby}_marker.csv", index=False)
+    all_markers[groupby].value_counts().sort_index().to_csv(
+        out_dir / f"{groupby}_diff_statistics.csv",
         header=["marker_count"],
     )
 

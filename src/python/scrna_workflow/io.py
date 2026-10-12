@@ -34,76 +34,136 @@ def read_sample_info(path, group_patterns=None):
     return table
 
 
-# 优先寻找 Cell Ranger 过滤 MTX 目录，其次寻找 H5；均缺失时中止。
-def _matrix_path(raw_dir):
-    outs = Path(raw_dir) / "outs"
-    matrix_dir = outs / "filtered_feature_bc_matrix"
-    matrix_h5 = outs / "filtered_feature_bc_matrix.h5"
-    if matrix_dir.exists():
-        return matrix_dir
-    if matrix_h5.exists():
-        return matrix_h5
-    raise FileNotFoundError(f"No filtered Cell Ranger matrix under {outs}")
+# 统一平台名称；仅识别已有公共流程支持的四种输入格式。
+def _platform_key(platform):
+    aliases = {"10x": "10x", "cellranger": "10x", "c4": "c4", "华大": "c4",
+               "seek": "seek", "xunyin": "seek", "寻因": "seek", "bd": "bd"}
+    key = str(platform).strip().lower()
+    if key not in aliases:
+        raise ValueError(f"Unsupported input platform: {platform}")
+    return aliases[key]
 
 
-# 读取单样本矩阵，并用 sample:barcode 构造跨样本唯一细胞索引。
-def _read_10x_record(record, data_dir, cache=True):
-    import scanpy as sc
+# 按平台定位矩阵；也允许样本表 raw 直接指向一个矩阵目录。
+def _matrix_path(raw_dir, platform="10x"):
+    raw_dir = Path(raw_dir)
+    key = _platform_key(platform)
+    candidates = {
+        "10x": [raw_dir / "outs" / "filtered_feature_bc_matrix",
+                raw_dir / "outs" / "filtered_feature_bc_matrix.h5"],
+        "c4": [raw_dir / "output" / "filter_matrix", raw_dir / "filter_matrix"],
+        "seek": [raw_dir / "Outs" / "filtered_feature_bc_matrix",
+                 raw_dir / raw_dir.name / "Outs" / "filtered_feature_bc_matrix"],
+        "bd": [raw_dir / "filtered_feature_bc_matrix"],
+    }[key]
+    candidates += [raw_dir / "filtered_feature_bc_matrix", raw_dir]
+    for path in candidates:
+        if path.is_file() and path.suffix == ".h5":
+            return path
+        if path.is_dir() and any((path / n).is_file() for n in ("matrix.mtx", "matrix.mtx.gz")):
+            return path
+    raise FileNotFoundError(f"No {key} expression matrix under {raw_dir}")
 
-    matrix = _matrix_path(Path(data_dir) / record.raw)
-    if matrix.is_dir():
-        adata = sc.read_10x_mtx(matrix, var_names="gene_symbols", cache=cache)
-    else:
-        adata = sc.read_10x_h5(matrix)
+
+# C4/BD 的第一列是基因名；不能按 10x 的第二列规则误读。
+def _read_platform_matrix(path, platform, cache=True):
+    key = _platform_key(platform)
+    if key in {"10x", "seek"}:
+        import scanpy as sc
+        return (sc.read_10x_mtx(path, var_names="gene_symbols", cache=cache)
+                if path.is_dir() else sc.read_10x_h5(path))
+    import anndata as ad
+    from scipy.io import mmread
+    from scipy.sparse import csr_matrix
+
+    # 同时兼容压缩和未压缩的 MEX 文件。
+    def component(stem):
+        for name in (stem, stem + ".gz"):
+            if (path / name).is_file():
+                return path / name
+        raise FileNotFoundError(f"Missing {stem} under {path}")
+
+    genes = pd.read_csv(component("features.tsv"), sep="\t", header=None, dtype=str)
+    barcodes = pd.read_csv(component("barcodes.tsv"), sep="\t", header=None, dtype=str)[0]
+    if key == "bd":
+        # 已有 CellLabel_ 前缀原样保留，不截短或重复加前缀。
+        barcodes = barcodes.map(lambda x: x if x.startswith("CellLabel_") else "CellLabel_" + x)
+    matrix = csr_matrix(mmread(component("matrix.mtx")).T, dtype="float32")
+    if matrix.shape != (len(barcodes), len(genes)):
+        raise ValueError("Matrix shape does not match barcode and feature tables")
+    return ad.AnnData(matrix, obs=pd.DataFrame(index=pd.Index(barcodes.values)),
+                      var=pd.DataFrame({"gene_symbols": genes[0].values}, index=pd.Index(genes[0].values)))
+
+
+# 保留真实 barcode，再用 sample:barcode 建立跨平台、跨样本唯一索引。
+def _read_10x_record(record, data_dir, cache=True, platform="10x"):
+    key = _platform_key(getattr(record, "platform", "") or platform)
+    matrix = _matrix_path(Path(data_dir) / record.raw, key)
+    adata = _read_platform_matrix(matrix, key, cache=cache)
     adata.var_names_make_unique()
+    if not adata.obs_names.is_unique:
+        raise ValueError(f"Duplicate barcodes in sample {record.sample}")
     adata.obs["barcode"] = adata.obs_names.astype(str)
     adata.obs["sample"] = record.sample
     adata.obs["group"] = record.group
-    adata.obs_names = pd.Index(
-        record.sample + ":" + adata.obs["barcode"].astype(str),
-        name="cell_id",
-    )
+    adata.obs["platform"] = key
+    adata.obs_names = pd.Index(record.sample + ":" + adata.obs["barcode"].astype(str), name="cell_id")
     return adata
 
 
-# 复制存在的 Cell Ranger 报告、指标和过滤矩阵到当前报告目录。
-def _copy_cellranger_outputs(record, data_dir, out_dir):
-    source = Path(data_dir) / record.raw / "outs"
-    target = Path(out_dir) / "01-CellRanger" / record.sample
+# 按原平台复制矩阵与已有报告；只有项目显式启用时才复制这些上游产物。
+def _copy_cellranger_outputs(record, data_dir, out_dir, platform="10x"):
+    key = _platform_key(getattr(record, "platform", "") or platform)
+    matrix = _matrix_path(Path(data_dir) / record.raw, key)
+    source = matrix.parent
+    folder = {"10x": "01-CellRanger", "c4": "01-Dnbc4tools",
+              "seek": "01-seeksoultools", "bd": "01-Rhapsody"}[key]
+    target = Path(out_dir) / folder / record.sample
     target.mkdir(parents=True, exist_ok=True)
-    for name in ("metrics_summary.csv", "cloupe.cloupe", "web_summary.html"):
+    for name in ("metrics_summary.csv", "metrics_summary.xls", "cloupe.cloupe", "web_summary.html",
+                 f"{record.raw}_summary.csv", f"{record.raw}_report.html",
+                 f"{record.raw}_Metrics_Summary.csv", f"{record.raw}_scRNA_report.html"):
         path = source / name
-        if path.exists():
-            shutil.copy2(path, target / name)
-    matrix = source / "filtered_feature_bc_matrix"
-    if matrix.exists():
+        if path.is_file():
+            shutil.copy2(path, target / path.name)
+    if matrix.is_dir():
         shutil.copytree(matrix, target / matrix.name, dirs_exist_ok=True)
+    else:
+        shutil.copy2(matrix, target / matrix.name)
 
 
-# 按样本表读入矩阵，以共同基因合并样本，并可复制 Cell Ranger 结果。
-def load_10x_data(
-    data_dir,
-    sample_info,
-    out_dir=None,
-    copy_cellranger_outputs=False,
-    cache=True,
-):
+# 从统一样本表读取四种平台，可逐行指定 platform；outer 显式补零，默认仍为 inner。
+def load_expression_data(data_dir, sample_info, out_dir=None,
+                         copy_cellranger_outputs=False, cache=True, platform="10x", join="inner"):
     import anndata
 
-    info = (
-        read_sample_info(sample_info)
-        if isinstance(sample_info, (str, Path))
-        else sample_info.copy()
-    )
+    info = read_sample_info(sample_info) if isinstance(sample_info, (str, Path)) else sample_info.copy()
+    if info.empty or not {"raw", "sample", "group"}.issubset(info.columns):
+        raise ValueError("Sample table requires non-empty raw, sample and group columns")
+    if info[["raw", "sample", "group"]].isna().any().any() or info[["raw", "sample", "group"]].eq("").any().any():
+        raise ValueError("Sample table contains empty identifiers")
+    if info["sample"].duplicated().any():
+        raise ValueError("Sample identifiers must be unique")
+    if join not in {"inner", "outer"}:
+        raise ValueError("matrix join must be inner or outer")
+    if copy_cellranger_outputs and out_dir is None:
+        raise ValueError("out_dir is required when copying upstream outputs")
     records = list(info.itertuples(index=False))
-    adatas = [_read_10x_record(record, data_dir, cache=cache) for record in records]
-    adata = anndata.concat(adatas, join="inner", merge="same", index_unique=None)
-    adata.var_names_make_unique()
-
+    adatas = [_read_10x_record(record, data_dir, cache, platform) for record in records]
+    adata = anndata.concat(adatas, join=join, merge="same", index_unique=None, fill_value=0)
+    if adata.n_vars == 0:
+        raise ValueError("Samples have no shared genes; check the input format or explicitly select outer join")
+    adata.obs["sample"] = pd.Categorical(adata.obs["sample"], categories=info["sample"], ordered=True)
+    adata.obs["group"] = pd.Categorical(adata.obs["group"], categories=info["group"].drop_duplicates(), ordered=True)
     if copy_cellranger_outputs:
         for record in records:
-            _copy_cellranger_outputs(record, data_dir, out_dir)
+            _copy_cellranger_outputs(record, data_dir, out_dir, platform)
     return adata
+
+
+# 保留原 10x 公共接口，已有项目和 get_10x_mtx 调用无需改写。
+def load_10x_data(data_dir, sample_info, out_dir=None, copy_cellranger_outputs=False, cache=True):
+    return load_expression_data(data_dir, sample_info, out_dir, copy_cellranger_outputs, cache)
 
 
 # 将 group-to-samples 字典转换为样本表，再复用多样本读取函数。

@@ -12,3 +12,7 @@
 - `steps.py`：项目级标准分析入口。
 
 换项目仍成立的逻辑放 `src/python/`；项目特异参数、cluster 判断和基因列表放项目 `config/`，一次性改动记录在新的 workflow 脚本中。
+
+- `io.py` 的 `load_expression_data` 扩展四平台读取，旧 10x 接口继续委托同一实现。
+- `compatibility.py`：独立 H5AD 兼容副本与可选旧环境验证。
+- `vdj.py`：精确细胞匹配、链质控、克隆簇及样本统计，Scirpy/MuData 延迟导入。

@@ -8,7 +8,7 @@ from .analysis import (
     find_marker_gene,
 )
 from .annotation import apply_manual_annotation, celltype_annotation
-from .io import get_10x_mtx, infer_group, load_10x_data, read_sample_info
+from .io import get_10x_mtx, infer_group, load_10x_data, load_expression_data, read_sample_info
 from .qc import add_qc_metrics, cell_filtering, data_qc
 from .runtime import make_report_dir, save_fig, save_figure
 from .visualization import (
@@ -25,6 +25,7 @@ __all__ = [
     "infer_group",
     "read_sample_info",
     "load_10x_data",
+    "load_expression_data",
     "get_10x_mtx",
     "add_qc_metrics",
     "data_qc",

@@ -123,12 +123,14 @@ def style_dotplot(fig=None):
 
 
 # 功能：提取 UMAP 的统一横纵坐标范围（定义：umap_limits）。
-def umap_limits(adata):
+def umap_limits(adata, padding=0.05):
     coords = np.asarray(adata.obsm["X_umap"])
-    return (
-        (coords[:, 0].min(), coords[:, 0].max()),
-        (coords[:, 1].min(), coords[:, 1].max()),
-    )
+    limits = []
+    for axis in (0, 1):
+        low, high = coords[:, axis].min(), coords[:, axis].max()
+        margin = max(float(high - low), 1.0) * padding
+        limits.append((low - margin, high + margin))
+    return tuple(limits)
 
 
 # 功能：固定 UMAP 比例与坐标范围，保证分面图可比较（定义：fix_umap_axes）。
